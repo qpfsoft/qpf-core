@@ -8,51 +8,56 @@
 // ╰───────────────────────────────────────────────────────────┘
 
 if (! function_exists('echor')) {
-    
     /**
-     * 打印一个或多个变量
-     * @param mixed $var [必须]要输出的内容
-     * @param bool|... $return [可选]是否直接返回信息，而不是输出
+     * 打印变量信息
+     * @param mixed $var 变量
+     * @param bool $return 返回打印内容
      * @return mixed
      */
     function echor($var, $return = false)
     {
-        $eol = $return ? '' : '<br>';
-        $args = func_get_args();
-        $count = func_num_args();
-        
-        // 参数数量为2时, 参数2是为布尔值将作为返回选项
-        if ($count > 2 || ($count == 2 && $return !== true && $return !== false)) {
-            foreach ($args as $val) {
-                echor($val, false);
-            }
-            return;
-        }
-        
-        $str = '';
-        if (is_array($var)) {
-            $str = $return ? get_varstr($var) : '<pre>' . (get_varstr($var)) . '</pre>'; // html_encode
-        } elseif (is_object($var)) {
-            $str .= 'Object("' . get_class($var) . '") {';
-            $vars = get_obj_vars($var);
-            if ($vars) {
-                $str .= get_arrstr($vars[2], $return);
-            }
-            $str .= '}';
-        } else {
-            $str = get_varstr($var);
-        }
-        
-        if ($return) {
-            return $str;
-        }
-        
-        echo $str . $eol;
+        return \qpf\helper\Export::echor($var, $return);
     }
 }
 
+if (! function_exists('dump')) {
+    /**
+     * 打印变量类型与长度
+     * @param mixed $var 变量
+     * @return void
+     */
+    function dump($var)
+    {
+        \qpf\helper\Export::dump($var);
+    }
+}
+
+if (! function_exists('print')) {
+    /**
+     * 打印易读的数组
+     * @param mixed $var 变量
+     * @return void
+     */
+    function echor_arr($var)
+    {
+        \qpf\helper\Export::print($var);
+    }
+}
+
+if (! function_exists('echo_raw')) {
+    /**
+     * 原样换行并打印
+     * @param string $var 变量
+     * @return void
+     */
+    function echor_raw($var)
+    {
+        \qpf\helper\Export::echo($var);
+    }
+}
+
+
 if (! function_exists('get_varstr')) {
-    
     /**
      * 返回变量的内容描述
      * @param mixed $var 变量
@@ -60,92 +65,19 @@ if (! function_exists('get_varstr')) {
      */
     function get_varstr($var)
     {
-        if (is_array($var)) {
-            $map_varstr = function (array $arr) use (&$map_varstr) {
-                foreach ($arr as $i => $v) {
-                    if (is_array($v)) {
-                        $arr[$i] = $map_varstr($v);
-                    } else {
-                        $arr[$i] = get_varstr($v);
-                    }
-                }
-                return $arr;
-            };
-            
-            return print_r($map_varstr($var), true);
-        } elseif ($var === null) {
-            return 'null';
-        } elseif ($var === true || $var === false) {
-            return $var ? 'true' : 'false';
-        } elseif (is_int($var) || is_float($var)) {
-            return $var;
-        } elseif (is_numeric($var)) {
-            return '\'' . $var . '\'';
-        } elseif (is_string($var)) {
-            if (strpos($var, '<') !== false || strpos($var, '>') !== false) {
-                $var = html_encode($var);
-            }
-            return '\'' . addslashes($var) . '\''; // 安全转义
-        } elseif ($var instanceof \Closure) {
-            return 'function(){}';
-        } elseif (is_object($var)) {
-            return 'Object("' . get_class($var) . '"){}';
-        } elseif (is_resource($var)) {
-            return '{resource}';
-        } else {
-            return '{unknown}';
-        }
+        return \qpf\helper\Export::varStr($var);
     }
 }
+
 if (! function_exists('get_arrstr')) {
-    
     /**
      * 获取数组的字符串描述格式
-     * @param array $array
-     * @param bool|string $retrun 返回类型, 可能的值:
-     * - `true` : 使用文本转义符, 排版数组
-     * - `false` : 默认, 使用html标签, 排版数组
-     * - `text` : 字符串类型, 代表纯文本, 不排版
+     * @param array $var 数组
      * @return string
      */
-    function get_arrstr($array, $retrun = false, $level = 1)
+    function get_arrstr($var)
     {
-        if (! is_array($array))
-            return (string) $array;
-            
-            if ($retrun == 'txt') {
-                $eol = '';
-                $tab = '';
-            } else {
-                $eol = $retrun ? PHP_EOL : '<br>';
-                $tab = $retrun ? "\t" : '&nbsp;&nbsp;&nbsp;&nbsp;';
-            }
-            
-            $tab_level = str_repeat($tab, $level);
-            $str = '';
-            if (empty($array)) {
-                $str = $retrun ? '[]' : '[ ]';
-            } else {
-                $tmp = '[' . $eol;
-                $lastKey = array_last_key($array);
-                
-                foreach ($array as $index => $value) {
-                    $comma = $lastKey == $index ? '' : ',';
-                    if (is_array($value)) {
-                        $tmp .= $tab_level . $index . ' => ';
-                        $tmp .= get_arrstr($value, $retrun, $level + 1) . $comma . $eol;
-                    } else {
-                        $tmp .= $tab_level . $index . ' => ' . get_varstr($value) . $comma . $eol;
-                    }
-                }
-                
-                if ($level > 1) {
-                    $str = $tmp . $tab_level = str_repeat($tab, $level - 1) . ']';
-                } else {
-                    $str = $tmp . ']';
-                }
-            }
-            return $str;
+        return \qpf\helper\Export::arrsrt($var);
     }
 }
 if (! function_exists('get_obj_vars')) {
@@ -252,7 +184,6 @@ if (! function_exists('echor_object')) {
     }
 }
 if (! function_exists('echor_code')) {
-    
     /**
      * 高亮输出脚本代码
      * @param string $var 代码字符串
@@ -261,18 +192,10 @@ if (! function_exists('echor_code')) {
      */
     function echor_code($var, $return = false)
     {
-        $code = $var;
-        $result = highlight_string("<?php\n" . $code, true);
-        $result = preg_replace('/&lt;\\?php<br \\/>/', '', $result, 1);
-        if ($return) {
-            return $result;
-        }
-        
-        echo $result;
+        return \qpf\helper\Export::codeHighlight($var, $return);
     }
 }
 if (! function_exists('echor_html')) {
-    
     /**
      * 安全的输出带html的内容
      * @param string $var 变量或内容
@@ -281,11 +204,7 @@ if (! function_exists('echor_html')) {
      */
     function echor_html($var, $return = false)
     {
-        $result = str_replace(' ', '&nbsp;', html_encode($var));
-        if ($return) {
-            return $result;
-        }
-        echo $result;
+        return \qpf\helper\Export::html($var, $return);
     }
 }
 if (! function_exists('echor_exit')) {
@@ -313,37 +232,6 @@ if (! function_exists('exito')) {
         exit(1);
     }
 }
-if (! function_exists('var_echor')) {
-    /**
-     * 打印变量相关信息
-     * @param mixed $var
-     */
-    function var_echor($var)
-    {
-        ob_start();
-        var_dump($var);
-        echo '<pre style="white-space: pre-wrap;word-wrap: break-word;">' . ob_get_clean() . '</pre>';
-        exit(1);
-    }
-}
-if(!function_exists('echor_pre')) {
-    /**
-     * 将数据以pre标签输出
-     * @param mixed $var
-     * @param bool $return 是否直接返回输出
-     * @return string
-     */
-    function echor_pre($var, $return = false)
-    {
-        $var = '<pre>' . print_r($var, true) . '</pre>';
-        
-        if($return) {
-            return $var;
-        }
-        
-        echo $var;
-    }
-}
 if(!function_exists('echor_const')) {
     /**
      * 输出用户常量
@@ -357,7 +245,7 @@ if(!function_exists('echor_const')) {
             return $var['user'];
         }
         
-        echor_pre($var['user']);
+        echor_arr($var['user']);
     }
 }
 if (! function_exists('html_encode')) {
