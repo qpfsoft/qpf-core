@@ -9,20 +9,15 @@ interface ValidateRuleInterface
     /**
      * 设置字段验证规则
      */
-    public function rule();
+    public function rule($rule);
     
     /**
      * 追加字段验证规则
      */
-    public function append();
+    public function append($item);
     
     /**
      * 移除字段验证规则
      */
-    public function remove();
-    
-    /**
-     * 验证规则
-     */
-    public function check();
+    public function remove($item);
 }

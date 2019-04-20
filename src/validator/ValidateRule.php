@@ -23,16 +23,38 @@ class ValidateRule implements ValidateRuleInterface
      * @var array
      */
     public $rule;
+    /**
+     * 规则提示
+     * ```
+     * [
+     *      '验证方法' => '参数输入格式提示文本',
+     * ]
+     * ```
+     * @var array
+     */
+    public $message;
+    
+    /**
+     * 内置验证方法集合
+     * @var array
+     */
+    public $methods = [
+        ValidateMethods::class,
+        ValidateUpload::class,
+        ValidateDb::class,
+    ];
     
     /**
      * 构造函数
      * @param string $name 字段名称
      * @param string|array $rule 验证规则
+     * @param array $message 字段规则提示
      */
-    public function __construct($name = null, $rule = null)
+    public function __construct($name = null, $rule = null, $message = [])
     {
         $this->name = $name;
         $this->rule = $rule;
+        $this->message = $message;
     }
     
     /**
@@ -170,25 +192,63 @@ class ValidateRule implements ValidateRuleInterface
         return $this;
     }
     
-    
+    /**
+     * 获取指定规则提示
+     * @param string $item 规则名称
+     * @return string
+     */
+    public function alert($item)
+    {
+        return isset($this->message[$item]) ? $this->message[$item] : '';
+    }
 
     /**
-     * {@inheritDoc}
-     * @see \qpf\validator\ValidateRuleInterface::check()
+     * 验证值
      */
-    public function check()
+    public function check($value)
     {
         $rules = $this->rule;
         if (!is_array($rules)) {
             $rules = $this->parseRule($rules);
         }
         
+        $alert = [];
+        
         foreach ($rules as $method => $args) {
-            $args = var_export($args, true);
-            echo $method . "({$args}); <br>";
+            
+            /**
+             * @var bool $hasMethod 是否存在验证方法
+             */
+            $hasMethod = false;
+            
+            if ($args === null) {
+                $args = [$value];
+            } else {
+                array_unshift($args, $value);
+            }
+
+            // 自定义验证方法
+            if (method_exists($this, 'check' . $method)) {
+                $hasMethod = true;
+                $result =  call_user_func_array([$this, 'check' . $method], $args);
+            } else {
+                // 内置验证方法
+                foreach ($this->methods as $class) {
+                    if(method_exists($class, $method)) {
+                        $hasMethod = true;
+                        $result = call_user_func_array([$class, $method], $args);
+                    }
+                }
+            }
+            
+            if (!$hasMethod) {
+                throw new \Exception('Validate Rule Method miss : ' . quote($method) . ', for field ' . quote($this->name));
+            }
+            
+            
+            if (!$result) {
+                return false;
+            }
         }
     }
-
-    
-    
 }

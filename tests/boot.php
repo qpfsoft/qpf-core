@@ -9,7 +9,8 @@
 use qpf\deunit\Deunit;
 
 include __DIR__ . '/deunit/Deunit.php';
-include __DIR__ . '/helper.php';
+include __DIR__ . '/../src/helper.php';
 
-Deunit::$namespace['qpf\helper'] = __DIR__ . '/../src';
+Deunit::$namespace['qpf'] = __DIR__ . '/../src';
+Deunit::$namespace['qpf\helper'] = __DIR__ . '/../vendor/qpfsoft/helper/src';
 Deunit::init();
