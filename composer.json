@@ -11,7 +11,8 @@
     ],
     "minimum-stability": "dev",
     "require": {
-        "qpfsoft/helper": "dev-master"
+        "qpfsoft/helper": "dev-master",
+        "qpfsoft/qpf-error": "dev-master"
     },
     "autoload": {
     	"psr-4": {

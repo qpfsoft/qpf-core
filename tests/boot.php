@@ -13,4 +13,5 @@ include __DIR__ . '/../src/helper.php';
 
 Deunit::$namespace['qpf'] = __DIR__ . '/../src';
 Deunit::$namespace['qpf\helper'] = __DIR__ . '/../vendor/qpfsoft/helper/src';
+Deunit::$namespace['qpf\error'] = __DIR__ . '/../vendor/qpfsoft/error/src';
 Deunit::init();
