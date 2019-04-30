@@ -2,9 +2,11 @@
 namespace qpf\exceptions;
 
 /**
- * 无效路由异常
+ * 未知类
+ * 
+ * 调用不存在类的异常
  */
-class RouteException extends Exception
+class UnknownClass extends Exception
 {
     /**
      * 获取异常名称
@@ -12,6 +14,6 @@ class RouteException extends Exception
      */
     public function getName()
     {
-        return 'Invalid Route';
+        return 'Unknown Class';
     }
 }

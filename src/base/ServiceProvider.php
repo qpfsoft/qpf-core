@@ -3,6 +3,10 @@ namespace qpf\base;
 
 /**
  * 服务提供商抽象类
+ * 
+ * ```
+ * public function boot($app)
+ * ```
  */
 abstract class ServiceProvider
 {

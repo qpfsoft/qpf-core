@@ -2,7 +2,9 @@
 namespace qpf\exceptions;
 
 /**
- * 异常退出
+ * 退出异常
+ * 
+ * 该异常为应用程序正常退出, 不要捕捉该异常
  */
 class ExitException extends \Exception
 {
@@ -19,7 +21,7 @@ class ExitException extends \Exception
      * @param integer $code 错误码
      * @param \Exception $previous 异常链中的前一个异常
      */
-    public function __construct($status = 0, $message = '', $code = 0, \Exception $previous = null)
+    public function __construct($status = 0, $message = null, $code = 0, \Exception $previous = null)
     {
         $this->statusCode = $status;
         parent::__construct($message, $code, $previous);

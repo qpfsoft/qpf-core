@@ -21,7 +21,7 @@ class NotFoundException extends \RuntimeException
     {
         if (!empty($type)) {
             $this->invalid = ucfirst($type);
-            $this->message = $this->findTyep . ' not exists : ' . $message;
+            $this->message = $this->invalid . ' not exists : ' . $message;
         } else {
             $this->message = $message;
         }

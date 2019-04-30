@@ -7,7 +7,10 @@ use qpf\exceptions\CallException;
 use qpf\exceptions\QlassException;
 use qpf\exceptions\ParameterException;
 
-class Container
+/**
+ * 依赖解决容器
+ */
+class Container implements \ArrayAccess, \Countable, \IteratorAggregate
 {
     /**
      * 绑定依赖定义
@@ -26,7 +29,7 @@ class Container
     public $instance = [];
     
     /**
-     * 获取对象实例
+     * 获取容器中的对象实例 - 不存在则创建
      * @param string $class 类名, 接口名, 别名
      * @param array $params 构造参数
      * @param array $option 对象属性配置
@@ -65,12 +68,12 @@ class Container
     /**
      * 绑定一个依赖关系
      * @param string $name 依赖名称, 即`类名, 接口名, 别名`
-     * @param array $config 依赖关系, 即`类名, 对象或定义数组, 闭包`
+     * @param mixed $config 依赖关系, 即`类名, 对象或定义数组, 闭包`
      * @param array $params 构造参数
      * @param bool $single 是否单例
      * @return $this
      */
-    public function bind($name, array $config = [], array $params = [], $single = false)
+    public function bind($name, $config = [], array $params = [], $single = false)
     {
         $this->binds[$name] = [$config, $single];
         $this->params[$name] = $params;
@@ -100,7 +103,7 @@ class Container
     {
         foreach ($names as $name => $array) {
             if (is_array($array) && isset($array['class'])) {
-                $this->bind($name, $array, $single);
+                $this->bind($name, $array, [], $single);
             } else {
                 if (count($array) === 2) {
                     // 跳过构造参数设置
@@ -119,18 +122,19 @@ class Container
     /**
      * 注册单例类
      * @param string $name 类名, 接口名, 别名
-     * @param array $config
+     * @param mixed $config 依赖关系, 即`类名, 对象或定义数组, 闭包` 
+     * @param array $params 构造参数
      * @return void
      */
-    public function single($name, $config)
+    public function single($name, $config, $params = [])
     {
-        $this->bind($name, $config, true);
+        $this->bind($name, $config, $params, true);
     }
     
     /**
-     * 注册单例实例
+     * 绑定类实例到容器
      * @param string $name 类名, 接口名, 别名
-     * @param object $object
+     * @param object $object 对象实例
      * @return void
      */
     public function instance($name, $object)
@@ -139,7 +143,7 @@ class Container
     }
     
     /**
-     * 创建类的实例
+     * 创建类的实例 - 容器中存在将直接返回
      * @param string $name 类名, 接口名, 别名
      * @param array $params 构造参数, 会覆盖默认值
      * @param array $option 对象属性配置数组
@@ -264,7 +268,7 @@ class Container
     protected function parseParameters($parameters, array $params = [])
     {
         $construct = [];
-        
+
         if (!empty($parameters)) {
             reset($parameters); // 重设数组指针
             $type = key($parameters) === 0 ? 1 : 0; // 1序列数组, 0关联数组
@@ -295,6 +299,7 @@ class Container
                 }
             }
         }
+
         return $construct;
     }
     
@@ -308,7 +313,7 @@ class Container
     {
         try {
             $reflect = new \ReflectionFunction($func);
-            $args = $this->parseParameters($reflect->getParameters(), $params);
+            $args = $this->parseParameters($reflect->getParameters($reflect->getParameters()), $params);
             return $reflect->invokeArgs($args);
         } catch (\ReflectionException $e) {
             throw (new CallException())->badFunctionCall($func);
@@ -340,10 +345,22 @@ class Container
                 $reflection = new \ReflectionMethod($method);
             }
             /* @var $reflection \ReflectionMethod  */
-            return $reflection->invokeArgs($objcet, $this->parseParameters($reflection, $params));
+            return $reflection->invokeArgs($objcet, $this->parseParameters($reflection->getParameters(), $params));
         } catch (\ReflectionException $e) {
             throw (new CallException())->badMethodCall($method);
         }
+    }
+    
+    /**
+     * 调用类的实例
+     * @param string $class 类名
+     * @param array $params 构造参数
+     * @param array $option 对象属性设置
+     * @return object
+     */
+    public function callClass($class, array $params = [], array $option = [])
+    {
+        return $this->build($class, $params, $option);
     }
     
     /**
@@ -381,12 +398,42 @@ class Container
     
     /**
      * 是否绑定了指定的依赖关系
-     * @param string $name
+     * @param string $name 类名, 接口名, 别名
      * @return boolean
      */
     public function isBind($name)
     {
         return isset($this->binds[$name]) || isset($this->instance[$name]);
+    }
+    
+    /**
+     * 容器中是否存在指定对象实例
+     * @param string $name 类名, 接口名, 别名
+     * @return bool
+     */
+    public function exists($name)
+    {
+        return isset($this->instance[$name]);
+    }
+    
+    /**
+     * 删除容器内的对象实例
+     * @param string $name 类名, 接口名, 别名
+     */
+    public function delete($name)
+    {
+        if (isset($this->instance[$name])) {
+            unset($this->instance[$name]);
+        }
+    }
+    
+    /**
+     * 获取容器内所有对象实例
+     * @return array
+     */
+    public function all()
+    {
+        return $this->instance;
     }
     
     /**
@@ -398,5 +445,79 @@ class Container
         $this->binds = [];
         $this->params = [];
         $this->instance = [];
+    }
+    
+    public function __set($name, $value)
+    {
+        $this->bind($name, $value);
+    }
+    
+    public function __get($name)
+    {
+        return $this->get($name);
+    }
+    
+    public function __isset($name)
+    {
+        return $this->exists($name);
+    }
+    
+    public function __unset($name)
+    {
+        $this->delete($name);
+    }
+    
+    /**
+     * {@inheritDoc}
+     * @see Countable::count()
+     */
+    public function count()
+    {
+        return count($this->instance);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see ArrayAccess::offsetExists()
+     */
+    public function offsetExists($offset)
+    {
+        return $this->exists($offset);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see ArrayAccess::offsetGet()
+     */
+    public function offsetGet($offset)
+    {
+        return $this->make($offset);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see ArrayAccess::offsetSet()
+     */
+    public function offsetSet($offset, $value)
+    {
+        $this->bind($offset, $value);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see ArrayAccess::offsetUnset()
+     */
+    public function offsetUnset($offset)
+    {
+        $this->delete($offset);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see IteratorAggregate::getIterator()
+     */
+    public function getIterator()
+    {
+        return new \ArrayIterator($this->instance);
     }
 }

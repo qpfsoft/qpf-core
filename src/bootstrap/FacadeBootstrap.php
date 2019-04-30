@@ -1,13 +1,15 @@
 <?php
 namespace qpf\bootstrap;
 
-class ErrorBootstrap implements BootstrapInterface
+use qpf\base\Facade;
+
+class FacadeBootstrap implements BootstrapInterface
 {
     /**
      * 引导程序
      */
     public function bootstrap(\qpf\base\Application $app)
     {
-        //$app->error->register();
+        Facade::setDependencyApp($app);
     }
 }
