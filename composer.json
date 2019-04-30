@@ -11,7 +11,8 @@
     ],
     "minimum-stability": "dev",
     "require": {
-        "qpfsoft/helper": "dev-master",
+    	"php": ">=7.1.0",
+    	"qpfsoft/helper": "dev-master",
         "qpfsoft/qpf-error": "dev-master"
     },
     "autoload": {
