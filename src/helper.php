@@ -56,7 +56,6 @@ if (! function_exists('echo_raw')) {
     }
 }
 
-
 if (! function_exists('get_varstr')) {
     /**
      * 返回变量的内容描述
@@ -77,7 +76,7 @@ if (! function_exists('get_arrstr')) {
      */
     function get_arrstr($var)
     {
-        return \qpf\helper\Export::arrsrt($var);
+        return \qpf\helper\Export::varArray($var);
     }
 }
 if (! function_exists('get_obj_vars')) {
@@ -91,34 +90,8 @@ if (! function_exists('get_obj_vars')) {
      */
     function get_obj_vars($instance)
     {
-        $clone = (array) $instance;
-        if (empty($clone))
-            return [];
-            
-            $arr = [];
-            $arr['0'] = $clone;
-            $parse_type = function (array $param) {
-                $name = ['public_','protected_','private_'];
-                if (isset($param[2])) {
-                    $type = $param[1] == '*' ? '1' : '2';
-                } else {
-                    $type = '0';
-                }
-                return $name[$type];
-            };
-            
-            foreach ($clone as $key => $value) {
-                $aux = explode("\0", $key);
-                $count = count($aux);
-                $newkey = $parse_type($aux) . $aux[$count - 1];
-                $arr['1'][$newkey] = &$arr['0'][$key];
-                $newkey = $aux[$count - 1];
-                $arr['2'][$newkey] = &$arr['0'][$key];
-            }
-            
-            return $arr;
+        return \qpf\helper\ParseObject::getobjectVars($instance);
     }
-    ;
 }
 if (! function_exists('get_obj_methods')) {
     
@@ -129,17 +102,8 @@ if (! function_exists('get_obj_methods')) {
      */
     function get_obj_methods($class)
     {
-        $array1 = get_class_methods($class);
-        $parent_class = get_parent_class($class);
-        if ($parent_class) {
-            $array2 = get_class_methods($parent_class);
-            $array3 = array_diff($array1, $array2);
-        } else {
-            $array3 = $array1;
-        }
-        return $array3;
+        return \qpf\helper\ParseObject::getPublicMethods($class);
     }
-    ;
 }
 if (! function_exists('echor_object')) {
     
@@ -151,36 +115,7 @@ if (! function_exists('echor_object')) {
      */
     function echor_object($var, $return = false)
     {
-        $eol = $return ? '' : '<br/>';
-        $resutl = [];
-        if (is_object($var)) {
-            $resutl['class'] = get_class($var);
-            $params = get_obj_vars($var);
-            
-            if ($params) {
-                foreach ($params[2] as $name => $value) {
-                    if (is_array($value)) {
-                        $resutl['params'][$name] = $value;
-                    } else {
-                        $resutl['params'][$name] = get_varstr($value);
-                    }
-                }
-            } else {
-                $resutl['params'] = [];
-            }
-            
-            $methods = get_obj_methods($var);
-            if($methods) {
-                foreach ($methods as $method) {
-                    $resutl['methods'][] = $method . '()';
-                }
-            } else {
-                $resutl['methods'] = [];
-            }
-            
-        }
-        
-        return echor($resutl, $return);
+        return \qpf\helper\Export::objct($var, $return);
     }
 }
 if (! function_exists('echor_code')) {
