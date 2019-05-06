@@ -11,13 +11,14 @@
     ],
     "minimum-stability": "dev",
     "require": {
-    	"php": ">=7.1.0"
-    },
-    "require-dev": {
-        "qpfsoft/deunit": "^1.1",
+    	"php": ">=7.1.0",
+    	"qpfsoft/deunit": "^1.1",
         "qpfsoft/lang": "^1.0",
         "qpfsoft/helper": "^1.0",
         "qpfsoft/qpf-error": "^1.0"
+    },
+    "require-dev": {
+        
     },
     "autoload": {
     	"psr-4": {
