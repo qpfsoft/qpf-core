@@ -15,7 +15,7 @@
     	"qpfsoft/deunit": "^1.1",
         "qpfsoft/lang": "^1.0",
         "qpfsoft/helper": "^1.0",
-        "qpfsoft/qpf-error": "^1.0"
+        "qpfsoft/error": "^1.0"
     },
     "require-dev": {
         
