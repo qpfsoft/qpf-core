@@ -11,9 +11,15 @@
     ],
     "minimum-stability": "dev",
     "require": {
-    	"php": ">=7.1.0",
+    	"php": ">=6.5",
     	"qpfsoft/helper": "dev-master",
         "qpfsoft/qpf-error": "dev-master"
+    },
+    "require-dev": {
+        "qpfsoft/deunit": "^1.1",
+        "qpfsoft/lang": "^1.0",
+        "qpfsoft/helper": "^1.0",
+        "qpfsoft/qpf-error": "^1.0"
     },
     "autoload": {
     	"psr-4": {
