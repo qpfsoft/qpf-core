@@ -14,7 +14,7 @@
     	"php": ">=7.1.0",
     	"qpfsoft/deunit": "^1.1",
         "qpfsoft/lang": "^1.0",
-        "qpfsoft/helper": "^1.0",
+        "qpfsoft/helper": "^2.0",
         "qpfsoft/error": "^1.0",
         "qpfsoft/phtml": "^1.0",
         "psr/cache": "~1.0",
