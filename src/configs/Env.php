@@ -47,15 +47,15 @@ class Env extends Core
             foreach ($name as $key => $val) {
                 if(is_array($val)) {
                     foreach ($val as $k => $v) {
-                        $this->env[$key .'_'. strtoupper($k)] = $v;
+                        $this->env[$key .'_'. strtoupper($k)] = $this->repairValueType($v);
                     }
                 } else {
-                    $this->env[$key] = $val;
+                    $this->env[$key] = $this->repairValueType($val);
                 }
             }
         } else {
             $name = $this->parseName($name);
-            $this->env[$name] = $value;
+            $this->env[$name] = $this->repairValueType($value);
         }
     }
     
@@ -110,13 +110,9 @@ class Env extends Core
         if($env === false) {
             return $default;
         }
-        if($env === 'false') {
-            $env = false;
-        } elseif ($env === 'true') {
-            $env = true;
-        }
+
         if (!isset($this->env[$name])) {
-            $this->env[$name] = $env;
+            $this->env[$name] = $this->repairValueType($env);
         }
         return $env;
     }
@@ -129,5 +125,56 @@ class Env extends Core
     protected function parseName($name)
     {
         return strtoupper(str_replace('.', '_', $name));
+    }
+    
+    /**
+     * 修复值的类型
+     * 
+     * # 默认
+     * 值为 null，no 和 false 等效于 "",
+     * 值为 yes 和 true 等效于 "1"
+     * 数字值会变为字符串数字
+     * 
+     * # 修复类型
+     * 'null' > null
+     * 'false|no' > false
+     * 'true|yes' > true
+     * 以上关键字值, 以字符串形式表示, 会转换为指定类型
+     * 
+     * # 注意
+     * .env中的数字会变为字符串数字. 运算时需注意.
+     * 
+     * @param mixed $value
+     * @return mixed
+     */
+    protected function repairValueType($value)
+    {
+        if ($value === true || $value === false) {
+            return $value;
+        }
+        
+        if (is_numeric($value)) {
+            return strpos($value, '.') ? (float) $value : (int) $value;
+        }
+        
+        
+        if (is_string($value)) {
+            $temp = strtolower($value);
+            switch ($temp) {
+                case 'null':
+                    return null;
+                    break;
+                case 'true':
+                case 'yes':
+                    return true;
+                    break;
+                case 'false':
+                case 'no':
+                    return false;
+                    break;
+            }
+        }
+        
+        return $value;
     }
 }

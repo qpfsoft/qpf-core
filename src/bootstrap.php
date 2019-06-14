@@ -6,6 +6,7 @@
 // │-----------------------------------------------------------│
 // │ Author: qiun <qiun@163.com>
 // ╰───────────────────────────────────────────────────────────┘
-include  __DIR__ . '/helper.php';
+include __DIR__ . '/loader.php';
+include __DIR__ . '/helper.php';
 
-class QPF extends \qpf\base{}
+class QPF extends \qpf\Base{}

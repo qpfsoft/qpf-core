@@ -14,7 +14,7 @@ use qpf;
  * 发布/订阅模式
  * - 
  */
-class Event
+class Event extends Core
 {
     
     /**
@@ -53,6 +53,11 @@ class Event
      * @var array
      */
     protected $observer = [];
+    
+    public function boot()
+    {
+        $this->enable(QPF::$app->config->get('app.on_event'));
+    }
 
     /**
      * 是否启用事件响应

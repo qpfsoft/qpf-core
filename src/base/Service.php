@@ -182,9 +182,9 @@ class Service extends Container
         
         if ($provider instanceof ServiceProvider) {
             $provider->register();
+        } else {
+            $this->asyncProviders[] = $provider;
         }
-        
-        $this->asyncProviders[] = $provider;
         
         if ($this->booted) {
             $this->bootProvider($provider);

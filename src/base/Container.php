@@ -9,6 +9,34 @@ use qpf\exceptions\ParameterException;
 
 /**
  * 依赖解决容器
+ * 
+ * 
+ * 对象定义
+ * ```
+ * [
+ *      '类名|接口名|别名' => [
+ *          '$class'  => '', // 实现类
+ *          '$params'  => [], // 构造参数
+ *          '$single' => false, // 是否单例, true将缓存再容器内
+ *          '$options' => [ // 属性配置
+ *              'property1' => 'value1',
+ *          ],
+ *      ],
+ * ]
+ * ```
+ * 
+ * 注意:
+ * 仅在使用[[QPF::create()]]方法创建实例时, 才可使用的简写配置
+ * ```
+ * [
+ *      '$class'  => '', // 实现类
+ *      'property1' => 'value1',
+ *      'property2' => 'value2',
+ * ]
+ * ```
+ * 完整的对象定义配置, 一般仅在注册服务时才需要, 通过方法注册, 按照参数传入即可!
+ * 
+ * @version 1.1
  */
 class Container implements \ArrayAccess, \Countable, \IteratorAggregate
 {
@@ -16,17 +44,12 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
      * 绑定依赖定义
      * @var array
      */
-    public $binds = [];
-    /**
-     * 构造参数配置
-     * @var array
-     */
-    public $params = [];
+    private $binds = [];
     /**
      * 单例实例
      * @var array
      */
-    public $instance = [];
+    private $instance = [];
     
     /**
      * 获取容器中的对象实例 - 不存在则创建
@@ -56,6 +79,27 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
     }
     
     /**
+     * 设置类依赖关系到容器
+     * @param string $name 类标识
+     * @param mixed $config 类定义
+     * @param array $params 可选, 构造参数
+     * @param array $options 可选, 对象属性
+     * @param bool $single 可选, 是否单例
+     * @return $this
+     */
+    public function set($name, $config, array $params = null, array $options = null, $single = null)
+    {
+        $config = $this->checkConfig($config);
+        $this->setConfigParams($config, $params);
+        $this->setConfigOptions($config, $options);
+        $this->setConfigSingle($config, $single);
+        
+        $this->binds[$name] = $config;
+        unset($this->instance[$name]);
+        return $this;
+    }
+    
+    /**
      * 是否存在指定的依赖关系
      * @param string $name 类名、接口名或别名
      * @return bool
@@ -69,14 +113,17 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
      * 绑定一个依赖关系
      * @param string $name 依赖名称, 即`类名, 接口名, 别名`
      * @param mixed $config 依赖关系, 即`类名, 对象或定义数组, 闭包`
-     * @param array $params 构造参数
-     * @param bool $single 是否单例
+     * @param bool $single 是否单例, 默认值为`null` 即不设置,
+     * 若[[$config]]参数数组存在`$single`元素, 该参数始终无效,
+     * 否则, 将会添加该元素设置.
      * @return $this
      */
-    public function bind($name, $config = [], array $params = [], $single = false)
+    public function bind($name, $config, $single = null)
     {
-        $this->binds[$name] = [$config, $single];
-        $this->params[$name] = $params;
+        $config = $this->checkConfig($config);
+        $this->setConfigSingle($config, $single);
+
+        $this->binds[$name] = $config;
         unset($this->instance[$name]);
         return $this;
     }
@@ -85,50 +132,154 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
      * 绑定一个或多个依赖关系
      * ```
      * [
-     *      '类名|接口名|别名' => [0 => '类配置' , 1 => '构造参数', 2 => '是否单例'],
-     *      ...
-     *      '类名|接口名|别名' => [0 => '类配置' , 1 => '构造参数'],
-     *      ...
-     *      '类名|接口名|别名' => [0 => '类配置' , 1 => '(bool)是否单例'],
-     *      ...
-     *      '类名|接口名|别名' => [类配置], // 将应用[$single]设置
-     *      ...
+     *      '类名|接口名|别名' => [
+     *          '$class'  => '', // 实现类
+     *          '$params'  => [], // 构造参数
+     *          '$single' => false, // 是否单例
+     *          '$options' => [ // 属性配置
+     *              'property1' => 'value1',
+     *          ],
+     *      ],
+     *      
+     *      'foo' => 'qpf\test\Foo',
      * ]
      * ```
      *
-     * @param string|array $names 依赖名称, 或多个依赖的定义数组
+     * @param array $configs 绑定多个依赖关系
+     * @param bool $single 是否单例, 该组的全局属性, 若该参数不为null,
+     * 将会为依赖关系添加该属性, 已存在该属性不会进行覆盖.
      * @param string
      */
-    public function binds(array $names, $single = false)
+    public function binds(array $configs, $single = null)
     {
-        foreach ($names as $name => $array) {
-            if (is_array($array) && isset($array['class'])) {
-                $this->bind($name, $array, [], $single);
-            } else {
-                if (count($array) === 2) {
-                    // 跳过构造参数设置
-                    if(is_bool($array[1])) {
-                        $array[2] = $array[1];
-                        $array[1] = [];
-                    }
-                }
-                
-                array_unshift($array, $name);
-                call_user_func_array([$this, 'bind'], $array);
-            }
+        foreach ($configs as $name => $config) {
+            $this->bind($name, $config, $single);
         }
     }
     
     /**
      * 注册单例类
      * @param string $name 类名, 接口名, 别名
-     * @param mixed $config 依赖关系, 即`类名, 对象或定义数组, 闭包` 
-     * @param array $params 构造参数
+     * @param array $params 可选, 定义或覆盖构造参数
      * @return void
      */
-    public function single($name, $config, $params = [])
+    public function single($name, $config)
     {
-        $this->bind($name, $config, $params, true);
+        $this->bind($name, $config, true);
+    }
+    
+    /**
+     * 检查类定义配置
+     * @param mixed $config
+     * @return mixed
+     */
+    protected function checkConfig($config)
+    {
+        if (is_array($config)) {
+            if (isset($config['$class'])) {
+                return $config;
+            }
+        } else {
+            return ['$class' => $config];
+        }
+
+        throw (new ParameterException())->invalidType('$config', 'Qlass');
+    }
+    
+    /**
+     * 获取指定类的定义
+     * @param string $name 类标识
+     * @param array $params 构造参数
+     * @param array $options 属性配置
+     * @return array
+     */
+    protected function getConfig($name, $params = null, $options = null)
+    {
+        $config = $this->binds[$name];
+        $this->setConfigOptions($config, $options);
+        $this->setConfigParams($config, $params);
+        
+        if (!key_exists('$params', $config)) {
+            $config['$params'] = [];
+        }
+        
+        if (!key_exists('$options', $config)) {
+            $config['$options'] = [];
+        }
+        
+        if (!key_exists('$single', $config)) {
+            $config['$single'] = false;
+        }
+        
+        return $config;
+    }
+    
+    /**
+     * 设置类定义是否单例
+     * 
+     * 当容器首次实例化单例类时将缓存在容器内, 再次实例化将
+     * 直接返回之前缓存的对象实例.
+     * 
+     * @param array $config
+     * @param bool $single
+     * @return void
+     */
+    protected function setConfigSingle(&$config, $single)
+    {
+        if ($single === null || !is_array($config)) {
+            return;
+        }
+        
+        // 当已设置将无法修改
+        if (!isset($config['$single'])) {
+            $config['$single'] = $single;
+        }
+    }
+    
+    /**
+     * 设置类定义的构造参数
+     * 
+     * 当容器实例化对象时, 会将提供的构造参数按顺序
+     * 或按变量名的行式传入类的构造器
+     * 
+     * @param array $config
+     * @param array $params
+     * @return void
+     */
+    protected function setConfigParams(&$config, $params)
+    {
+        if ($params === null) {
+            return;
+        }
+        
+        if (isset($config['$params'])) {
+            foreach ($params as $name => $value) {
+                $config['$params'][$name] = $value;
+            }
+        }
+        
+        $config['$params'] = $params;
+    }
+    
+    /**
+     * 配置类定义的初始化属性
+     * @param array $config
+     * @param array $options
+     * @return void
+     */
+    protected function setConfigOptions(&$config, $options)
+    {
+        if ($options === null) {
+            return;
+        }
+        
+        if (isset($config['$options'])) {
+            foreach ($options as $name => $value) {
+                $config['$options'][$name] = $value;
+            }
+        }
+        
+        $config['$options'] = $options;
     }
     
     /**
@@ -139,6 +290,10 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
      */
     public function instance($name, $object)
     {
+        if (!is_object($object)) {
+            throw (new ParameterException())->invalidType(2, 'object');
+        }
+        
         $this->instance[$name] = $object;
     }
     
@@ -152,7 +307,7 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
      * 因为新实例将被直接返回, 不覆盖之前单例缓存实例.
      * @return object
      */
-    public function make($name, array $params = [], array $option = [], $reset = false)
+    public function make($name, array $params = [], array $options = [], $reset = false)
     {
         // 不需要重新创建, 存在对象实例直接返回
         if (!$reset && isset($this->instance[$name])) {
@@ -161,55 +316,28 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
         
         // 未注册依赖关系, 直接创建类
         if (!isset($this->binds[$name])) {
-            return $this->build($name, $params, $option);
+            return $this->build($name, $params, $options);
         }
         
         // 获得类的定义
-        list($config, $single) = $this->binds[$name];
-        
-        if (is_callable($config, true)) {
-            $params = $this->getParams($name, $params);
-            $object = call_user_func_array($config, [$this, $params, $option]);
-        } elseif (is_array($config)) {
-            $class = $config['class'];
-            
-            unset($config['class']);
-            $option = array_merge($config, $option);
-            $params = $this->getParams($name, $params);
-            $object = $this->build($class, $params, $option);
+        $config = $this->getConfig($name);
 
+        if ($config['$class'] instanceof \Closure || is_array($config['$class'])) {
+            $object = call_user_func_array($config['$class'], [$this, $config['$params'], $config['$options']]);
+        } elseif (is_array($config) && isset($config['$class'])) {
+            $object = $this->build($config['$class'], $config['$params'], $config['$options']);
         } else {
             throw (new QlassException())->badConfigType($config);
         }
         
         // 缓存单例对象
-        if(!$reset && $single) {
+        if(!$reset && $config['$single']) {
             $this->instance($name, $object);
         }
         
         return $object;
     }
-    
-    /**
-     * 获取构造参数
-     * @param string $name 类名, 接口名, 别名
-     * @param array $params 覆盖参数
-     * @return array
-     */
-    protected function getParams($name, array $params = []) {
-        if (empty($this->params[$name])) {
-            return $params;
-        } elseif (empty($params)) {
-            return $this->params[$name];
-        } else {
-            $result = $this->params[$name];
-            foreach ($params as $key => $val) {
-                $result[$key] = $val;
-            }
-            return $result;
-        }
-    }
-    
+
     /**
      * 创建对象实例 - 依赖注入
      * @param string $class 类名
@@ -217,7 +345,7 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
      * @param array $option 属性配置
      * @return object
      */
-    public function build($class, array $params = [], array $option = [])
+    public function build($class, array $params = [], array $options = [])
     {
         try {
             $reflector = new \ReflectionClass($class);
@@ -229,7 +357,7 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
         if (!$reflector->isInstantiable()) {
             throw new CallException('Not instantiable class : ' . $class);
         }
-        
+
         // 获得构成函数反射
         $constructor = $reflector->getConstructor();
         // 无构造参数
@@ -241,19 +369,19 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
         $params = $this->parseParameters($constructor->getParameters(), $params);
         
         // 无属性配置, 直接创建
-        if (empty($option)) {
+        if (empty($options)) {
             return $reflector->newInstanceArgs($params);
         }
         
         // 可配置对象, 最后一个构造参数始终可导入配置
         if ($reflector->implementsInterface('qpf\base\Qlass')) {
-            $params[count($params) - 1] = $option;
+            $params[count($params) - 1] = $options;
             return $reflector->newInstanceArgs($params);
         }
         
         // 设置对象属性
         $object = $reflector->newInstanceArgs($params);
-        foreach ($option as $name => $value) {
+        foreach ($options as $name => $value) {
             $object->$name = $value;
         }
         return $object;
@@ -280,7 +408,7 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
                 }
                 $name = $parameter->getName();
                 // TODO 支持`is_debug` 设置 'isDebug'属性
-                $na_me = QPF::parseName($name, 'f');
+                $na_me = QPF::nameFormatToClass($name, true);
                 /* @var $hintedClass \ReflectionClass|null  */
                 $hintedClass = $parameter->getClass();
                 
@@ -313,7 +441,7 @@ class Container implements \ArrayAccess, \Countable, \IteratorAggregate
     {
         try {
             $reflect = new \ReflectionFunction($func);
-            $args = $this->parseParameters($reflect->getParameters($reflect->getParameters()), $params);
+            $args = $this->parseParameters($reflect->getParameters(), $params);
             return $reflect->invokeArgs($args);
         } catch (\ReflectionException $e) {
             throw (new CallException())->badFunctionCall($func);

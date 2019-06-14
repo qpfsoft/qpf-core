@@ -9,7 +9,7 @@ class QlassException extends \LogicException
     /**
      * 类定义数组缺少指定元素
      * @param string $key 默认`class`元素
-     * @return void
+     * @return $this
      */
     public function badConfig($key = 'class')
     {
@@ -17,13 +17,15 @@ class QlassException extends \LogicException
         if($key == 'class') {
             $this->message .= ', set class name';
         }
+        
+        return $this;
     }
     
     /**
      * 未知的类定义类型
      * @param mixed $config 类的定义配置
      * @param string $id 类标识
-     * @return void
+     * @return $this
      */
     public function badConfigType($config, $id = null)
     {
@@ -32,6 +34,8 @@ class QlassException extends \LogicException
         if (func_num_args() > 1) {
             $this->message .= ', for `' . $id .  '`';
         }
+        
+        return $this;
     }
     
     /**

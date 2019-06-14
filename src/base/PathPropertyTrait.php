@@ -17,11 +17,6 @@ trait PathPropertyTrait
      */
     protected $zonePath;
     /**
-     * 当前应用目录
-     * @var string
-     */
-    protected $appPath;
-    /**
      * 入口目录
      * @var string
      */
@@ -63,13 +58,12 @@ trait PathPropertyTrait
     protected $configPath;
     
     /**
-     * 返回当前应用程序目录路径
-     * @param bool $base 是否返回根目录, 默认`false`
+     * 返回空间命名
      * @return string
      */
-    public function getAppPath()
+    public function getZonename()
     {
-        return $this->appPath;
+        return $this->zonename;
     }
     
     /**

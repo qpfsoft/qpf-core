@@ -279,3 +279,47 @@ if (! function_exists('array_first_key')) {
         return key($array);
     }
 }
+if (!function_exists('console_log')) {
+    /**
+     * 控制台输出
+     * ```
+     * // 打印字符串
+     * console_log('xxx');
+     * // 打印数组
+     * $arr = [];
+     * console_log($arr);
+     * console_log(['array_title' => $arr]);
+     * ```
+     * @param string|array $str 消息
+     * @param bool $send 是否发送到游览器, 默认`false`
+     */
+    function console_log($str, bool $send = false)
+    {
+        static $_log = [];
+        static $showTitle = true;
+        $_log[] = $str;
+        
+        if ($send) {
+            echo \qpf\protect\web\Console::log($_log, $showTitle);
+            $_log = [];
+            $showTitle = false;
+        }
+    }
+}
+
+if (! function_exists('console_disable')) {
+    
+    /**
+     * 禁用控制台
+     * @param bool $src 是否引入模式, 默认`false`采用页内脚本
+     * @return string
+     */
+    function console_disable(bool $src = false): string
+    {
+        if ($src) {
+            return \qpf\protect\web\Console::openSrc();
+        } else {
+            return \qpf\protect\web\Console::openScript();
+        }
+    }
+}

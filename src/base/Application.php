@@ -8,6 +8,15 @@ use qpf\configs\Config;
 use qpf\error\Error;
 use qpf\bootstrap\ServiceBootstrap;
 use qpf\configs\Env;
+use qpf\lang\Lang;
+use qpf\web\Http;
+use qpf\web\Url;
+use qpf\web\Request;
+use qpf\web\Web;
+use qpf\log\Log;
+use qpf\router\Router;
+use qpf\response\Response;
+use qpf\installing\Install;
 
 /**
  * 应用程序基类
@@ -18,13 +27,18 @@ use qpf\configs\Env;
  * @property Db $db 数据库操作
  * @property Env $env 环境变量
  * @property Event $event 事件处理程序
- * @property \qpf\error\Error $error 错误处理程序
+ * @property Error $error 错误处理程序
+ * @property Http $http 
  * @property Url $url url管理
  * @property Middleware $middleware 中间件
  * @property Lang $lang 语言包
+ * @property Log $log 日志
  * @property Request $request 请求对象
  * @property Response $response 响应处理程序
+ * @property Router $route 路由器
  * @property Session $session 会话参数
+ * @property Web $web 网页服务
+ * @property Install $install 安装程序
  */
 class Application extends Service
 {
@@ -36,6 +50,11 @@ class Application extends Service
      */
     protected $name;
     /**
+     * 当前应用目录
+     * @var string
+     */
+    protected $appPath;
+    /**
      * 应用命名空间
      * @var string
      */
@@ -46,40 +65,15 @@ class Application extends Service
      */
     protected $isInit = false;
     /**
-     * 字符集
-     * @var string
-     */
-    protected $charset = 'UTF-8';
-    /**
      * 调试模式
      * @var bool|int
      */
-    protected $debug = true;
+    protected $debug = false;
     /**
      * 应用运行环境
      * @var string
      */
     protected $runenv;
-    /**
-     * 应用程序URL
-     * @var string
-     */
-    protected $baseurl = 'http://localhost';
-    /**
-     * 语言环境
-     * @var string
-     */
-    protected $locale = 'zh';
-    /**
-     * 回退语言环境
-     * @var string
-     */
-    protected $fallback_locale = 'zh';
-    /**
-     * 应用程序时区
-     * @var string
-     */
-    protected $timezone = 'Asia/Shanghai';
     /**
      * 应用开始的时间戳
      * @var int
@@ -90,11 +84,6 @@ class Application extends Service
      * @var int
      */
     protected $startMem;
-    /**
-     * 应用入口文件
-     * @var string
-     */
-    protected $scriptName;
     /**
      * 配置后缀
      * @var string
@@ -126,7 +115,9 @@ class Application extends Service
      */
     public function init()
     {
-        $this->isInit = true;
+        if ($this->isInit) {
+            return $this;
+        }
         
         $this->startTime = microtime(true);
         $this->startMem = memory_get_usage();
@@ -139,15 +130,17 @@ class Application extends Service
         }
         $this->booted = true;
         parent::bootstrap();
-        
-        // 设置系统时区
-        $this->setTimeZone($this->timezone);
-        
+
         // 加载应用依赖文件
         $this->appInitFile();
         $this->debuginit();
         
+        // 设置系统时区
+        $this->setTimeZone($this->config->get('app.timezone'));
+        
         $this->event->trigger('AppInit');
+        
+        $this->isInit = true;
         
         return $this;
     }
@@ -183,25 +176,7 @@ class Application extends Service
     {
         return $this->configExt;
     }
-    
-    /**
-     * 返回字符集
-     * @return string
-     */
-    public function getCharset()
-    {
-        return $this->charset;
-    }
-    
-    /**
-     * 应用程序URL
-     * @return string
-     */
-    public function getBaseUrl()
-    {
-        return $this->baseurl;
-    }
-    
+
     /**
      * 返回启动时的时间戳
      * @return int
@@ -226,6 +201,10 @@ class Application extends Service
      */
     public function getRunenv()
     {
+        if ($this->runenv === null) {
+            $this->runenv = $this->env->get('app_runenv', 'prod');
+        }
+        
         return strtolower($this->runenv);
     }
     
@@ -257,6 +236,42 @@ class Application extends Service
     }
     
     /**
+     * 设置当前应用程序相关路径
+     * @param string $appName 应用名称
+     * @return $this
+     */
+    public function setApp($appName)
+    {
+        $this->name = $appName;
+        $this->namespace = $this->zonename . '\\' . $appName;
+        $this->appPath = $this->zonePath . DIRECTORY_SEPARATOR . $appName;
+        $this->runtimePath = $this->runtimePath . DIRECTORY_SEPARATOR . $appName;
+        
+        return $this;
+    }
+    
+    /**
+     * 设置应用程序命名空间
+     * @param string $namespace
+     * @return $this
+     */
+    public function setNamespace($namespace)
+    {
+        $this->namespace = $namespace;
+        
+        return $this;
+    }
+    
+    /**
+     * 获取应用程序命名空间
+     * @return string
+     */
+    public function getNamespace()
+    {
+        return $this->namespace;
+    }
+    
+    /**
      * 设置当前应用名称
      * @param string $name
      * @return $this
@@ -275,6 +290,27 @@ class Application extends Service
     public function getName()
     {
         return $this->name;
+    }
+    
+    /**
+     * 设置应用程序路径
+     * @param string $path
+     * @return $this
+     */
+    public function setAppPath($path)
+    {
+        $this->appPath = $path;
+        
+        return $this;
+    }
+    
+    /**
+     * 返回当前应用程序目录路径
+     * @return string
+     */
+    public function getAppPath()
+    {
+        return $this->appPath;
     }
     
     /**
@@ -297,31 +333,12 @@ class Application extends Service
     {
         return $this->debug;
     }
-    
-    /**
-     * 返回当前语言类型
-     * @return string
-     */
-    public function getLocale()
-    {
-        return $this->locale;
-    }
-    
-    /**
-     * 返回回滚语言类型
-     * @return string
-     */
-    public function getFallbackLocale()
-    {
-        return $this->fallback_locale;
-    }
-    
+
     /**
      * 引导程序
      */
     protected function bootstrap()
     {
-        $this->scriptName = $this->getScriptName();
         $this->qpfPath = dirname(__DIR__);
         $this->qpfsoftPath = $this->getTrueQpfsoftPath($this->qpfPath);
         $this->vendorPath = dirname($this->qpfsoftPath);
@@ -332,22 +349,7 @@ class Application extends Service
         $this->routePath = $this->rootPath . DIRECTORY_SEPARATOR . 'route';
         $this->configPath = $this->rootPath . DIRECTORY_SEPARATOR . 'config';
     }
-    
-    /**
-     * 返回当前请求的脚本名 - 入口文件名
-     * @return string
-     */
-    protected function getScriptName()
-    {
-        if (isset($_SERVER['SCRIPT_FILENAME'])) {
-            $file = $_SERVER['SCRIPT_FILENAME'];
-        } elseif (isset($_SERVER['argv'][0])) {
-            $file = realpath($_SERVER['argv'][0]);
-        }
-        
-        return isset($file) ? pathinfo($file, PATHINFO_FILENAME) : '';
-    }
-    
+
     /**
      * 获取正确的qpfsoft目录
      * @param string $qpfPath
@@ -368,7 +370,7 @@ class Application extends Service
     protected function  appInitFile()
     {
         $this->configExt = $this->env->get('config_ext', '.php');
-        
+
         // 加载全局初始化文件
         if(is_file($this->runtimePath . '/init.php')) {
             include $this->runtimePath  . '/init.php';
@@ -400,20 +402,14 @@ class Application extends Service
         // 配置列表
         $files = [];
         
-        // 框架总配置模式 - web单文件
-        if(is_file($this->configPath . DIRECTORY_SEPARATOR . 'web.php')) {
-            $files[] = $this->configPath . DIRECTORY_SEPARATOR . 'web.php';
-            
-            // 框架散配置模式 - 目录下所有文件
-        } elseif (is_dir($this->configPath)) {
-            $files = glob($this->configPath . DIRECTORY_SEPARATOR . '*' . $this->configExt);
+        // 框架散配置模式 - 目录下所有文件
+        if (is_dir($this->configPath)) {
+            $files = glob($this->configPath . '/*' . $this->configExt);
         }
 
         foreach ($files as $file) {
             $this->config->load($file, pathinfo($file, PATHINFO_FILENAME));
         }
-        
-        QPF::trace($files, 'config');
     }
     
     /**
@@ -452,13 +448,13 @@ class Application extends Service
     protected function debuginit()
     {
         // 始终以环境变量生效
-        $this->debug = $this->env->get('app_debug', $this->debug);
-        $this->runenv = $this->env->get('app_runenv', $this->runenv);
+        $this->debug = $this->env->get('app_debug', $this->config->get('app.debug', false));
+        $this->runenv = $this->env->get('app_runenv', 'prod');
         $this->error->register();
         
         if(!$this->debug) {
             ini_set('display_errors', 'Off');
-        } elseif (!$this->isConsole()) {
+        } elseif (!$this->request->isConsoleRequest()) {
             if (ob_get_level() > 0) {
                 $output = ob_get_clean();
             }
@@ -467,14 +463,5 @@ class Application extends Service
                 echo $output;
             }
         }
-    }
-    
-    /**
-     * 是否运行在命令行
-     * @return bool
-     */
-    public function isConsole()
-    {
-        return PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg';
     }
 }

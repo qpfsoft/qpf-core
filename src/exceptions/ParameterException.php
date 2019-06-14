@@ -22,7 +22,7 @@ class ParameterException extends \LogicException
      * ```
      * @param string $var 参数名或索引位置
      * @param string $expect 期望类型描述
-     * @return void
+     * @return $this
      */
     public function invalidType($var, $expect = '')
     {
@@ -33,13 +33,15 @@ class ParameterException extends \LogicException
         if(!empty($expect)) {
             $this->message .= ' , Expected type `' . (string) $expect . '`';
         }
+        
+        return $this;
     }
     
     /**
      * 无效参数长度
      * @param mixed $var 传入参数
      * @param string $rule 规则描述
-     * @return void
+     * @return $this
      */
     public function invalidLength($var, $rule = '')
     {
@@ -54,6 +56,8 @@ class ParameterException extends \LogicException
         }
         
         $this->message = 'input length : `' . $len . '`';
+        
+        return $this;
     }
     
     /**
@@ -63,24 +67,47 @@ class ParameterException extends \LogicException
     public function invalidArrayIndex($var = '')
     {
         $this->message = 'invalid array index ' . $var;
+        
+        return $this;
     }
     
     /**
      * 无效数组键名
      * @param string $var 键名
+     * @return $this
      */
     public function invalidArrayKey($var = '')
     {
         $this->message = 'invalid array key name ' . $var;
+        
+        return $this;
     }
 
     /**
      * 无效参数范围
      * @param string $var 范围描述
+     * @return $this
      */
     public function invalidBetween($var = '')
     {
         $this->message = 'invalid parameter range ' . $var;
+        
+        return $this;
+    }
+    
+    /**
+     * 无效参数格式
+     * @param string $var 格式描述
+     * @return $this
+     */
+    public function invalidFormat($format = '')
+    {
+        $this->message = 'invalid parameter format';
+        if (empty($format)) {
+            $this->message .= ', Expected format:' . $format;
+        }
+        
+        return $this;
     }
     
     /**
